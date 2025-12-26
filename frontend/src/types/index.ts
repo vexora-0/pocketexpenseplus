@@ -1,40 +1,55 @@
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export interface Expense {
-  _id?: string;
+  _id: string;
   amount: number;
   category: string;
   paymentMethod: string;
   date: string;
-  description?: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
+  note?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+  pendingSync?: boolean;
+  localId?: string;
 }
 
 export interface Budget {
-  _id?: string;
+  _id: string;
   category: string;
   limit: number;
+  spent: number;
+  userId: string;
   month: number;
   year: number;
-  spent?: number;
-  remaining?: number;
-  percentage?: number;
-  exceeded?: boolean;
 }
 
-export interface Insight {
+export interface CategoryTotal {
   category: string;
-  current: number;
-  last: number;
-  change: number;
+  total: number;
+  percentage: number;
 }
 
-export interface Stats {
-  total: number;
-  categoryBreakdown: Record<string, number>;
-  insights: Insight[];
+export interface MonthlyStats {
+  totalSpent: number;
+  categoryTotals: CategoryTotal[];
+  insights: string[];
 }
+
+export const CATEGORIES = [
+  'Food',
+  'Travel',
+  'Shopping',
+  'Bills',
+  'Entertainment',
+  'Health',
+  'Education',
+  'Others',
+];
+
+export const PAYMENT_METHODS = ['Cash', 'Card', 'UPI', 'Wallet'];
 

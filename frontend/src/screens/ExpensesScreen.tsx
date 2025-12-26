@@ -1,60 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import { ScrollView, RefreshControl, Alert, StyleSheet, View } from 'react-native';
-import { Text, Button, Card, Chip, FAB } from 'react-native-paper';
-import { useExpenses } from '../context/ExpenseContext';
-import { useAuth } from '../context/AuthContext';
-import { Expense } from '../types';
-import ExpenseCard from '../components/ExpenseCard';
-import EmptyState from '../components/EmptyState';
-import GlassCard from '../components/GlassCard';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  Alert,
+} from "react-native";
+import { Text, Button, Card, IconButton, FAB } from "react-native-paper";
+import { useExpenses } from "../context/ExpenseContext";
+import { Expense, CATEGORIES } from "../types";
 
-const categories = ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Other'];
+type Props = {
+  navigation: any;
+};
 
-export default function ExpensesScreen({ navigation }: any) {
+export default function ExpensesScreen({ navigation }: Props) {
   const { expenses, loading, loadExpenses, deleteExpense } = useExpenses();
-  const { logout, user } = useAuth();
-  const [filter, setFilter] = useState<'all' | 'daily' | 'monthly'>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [viewMode, setViewMode] = useState<"daily" | "monthly">("daily");
 
   useEffect(() => {
-    if (user) {
-      loadExpenses();
-    }
-  }, [user]);
+    loadExpenses();
+  }, []);
 
-  const getFilteredExpenses = () => {
-    let filtered = expenses;
-    const now = new Date();
-    
-    if (filter === 'daily') {
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      filtered = filtered.filter(e => new Date(e.date) >= today);
-    } else if (filter === 'monthly') {
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      filtered = filtered.filter(e => new Date(e.date) >= monthStart);
-    }
+  const filteredExpenses = expenses.filter(
+    (e) => !selectedCategory || e.category === selectedCategory
+  );
 
-    if (selectedCategory) {
-      filtered = filtered.filter(e => e.category === selectedCategory);
-    }
+  const groupedExpenses = groupExpenses(filteredExpenses, viewMode);
 
-    return filtered;
-  };
-
-  const handleDelete = (expense: Expense) => {
+  const handleDelete = (id: string) => {
     Alert.alert(
-      'Delete Expense',
-      `Are you sure you want to delete this ${expense.category} expense of ₹${expense.amount.toFixed(2)}?`,
+      "Delete Expense",
+      "Are you sure you want to delete this expense?",
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: "Delete",
+          style: "destructive",
           onPress: async () => {
             try {
-              await deleteExpense(expense._id!);
+              await deleteExpense(id);
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete expense');
+              Alert.alert("Error", "Failed to delete expense");
             }
           },
         },
@@ -62,117 +50,148 @@ export default function ExpensesScreen({ navigation }: any) {
     );
   };
 
-  const filteredExpenses = getFilteredExpenses();
-  const total = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
-
   return (
     <View style={styles.container}>
-      <GlassCard style={styles.header}>
-        <View style={styles.headerContent}>
-          <View>
-            <Text variant="bodyMedium" style={styles.welcomeText}>
-              Welcome back,
-            </Text>
-            <Text variant="headlineSmall" style={styles.userName}>
-              {user?.name || 'User'}
-            </Text>
-          </View>
-          <Button
-            mode="contained"
-            icon="logout"
-            onPress={logout}
-            buttonColor="rgba(239, 68, 68, 0.3)"
-            textColor="white"
-            style={styles.logoutButton}
-          >
-            Logout
-          </Button>
-        </View>
-
-        <Card style={styles.totalCard}>
-          <Card.Content>
-            <Text variant="bodySmall" style={styles.totalLabel}>
-              Total Expenses
-            </Text>
-            <Text variant="displaySmall" style={styles.totalAmount}>
-              ₹{total.toFixed(2)}
-            </Text>
-          </Card.Content>
-        </Card>
-      </GlassCard>
+      <View style={styles.header}>
+        <Text variant="headlineMedium" style={styles.headerTitle}>
+          Expenses
+        </Text>
+      </View>
 
       <View style={styles.content}>
         <View style={styles.filters}>
-          {['all', 'daily', 'monthly'].map((f) => (
-            <Button
-              key={f}
-              mode={filter === f ? 'contained' : 'outlined'}
-              onPress={() => setFilter(f as any)}
-              style={styles.filterButton}
-              buttonColor={filter === f ? 'white' : 'transparent'}
-              textColor={filter === f ? 'black' : 'white'}
-            >
-              {f === 'all' ? 'All' : f === 'daily' ? 'Today' : 'Month'}
-            </Button>
-          ))}
+          <Button
+            mode={viewMode === "daily" ? "contained" : "outlined"}
+            onPress={() => setViewMode("daily")}
+            style={styles.filterButton}
+            buttonColor={viewMode === "daily" ? "white" : "transparent"}
+            textColor={viewMode === "daily" ? "black" : "white"}
+          >
+            Daily
+          </Button>
+          <Button
+            mode={viewMode === "monthly" ? "contained" : "outlined"}
+            onPress={() => setViewMode("monthly")}
+            style={styles.filterButton}
+            buttonColor={viewMode === "monthly" ? "white" : "transparent"}
+            textColor={viewMode === "monthly" ? "black" : "white"}
+          >
+            Monthly
+          </Button>
+        </View>
+
+        <View style={styles.categoryContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.categories}>
+              <Button
+                mode={!selectedCategory ? "contained" : "outlined"}
+                onPress={() => setSelectedCategory("")}
+                style={styles.categoryButton}
+                buttonColor={!selectedCategory ? "white" : "transparent"}
+                textColor={!selectedCategory ? "black" : "white"}
+              >
+                All
+              </Button>
+              {CATEGORIES.map((cat) => (
+                <Button
+                  key={cat}
+                  mode={selectedCategory === cat ? "contained" : "outlined"}
+                  onPress={() => setSelectedCategory(cat)}
+                  style={styles.categoryButton}
+                  buttonColor={
+                    selectedCategory === cat ? "white" : "transparent"
+                  }
+                  textColor={selectedCategory === cat ? "black" : "white"}
+                >
+                  {cat}
+                </Button>
+              ))}
+            </View>
+          </ScrollView>
         </View>
 
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryScroll}
-        >
-          <View style={styles.categories}>
-            <Chip
-              selected={!selectedCategory}
-              onPress={() => setSelectedCategory('')}
-              style={styles.categoryChip}
-              selectedColor="white"
-              textStyle={!selectedCategory ? styles.selectedChipText : styles.chipText}
-            >
-              All
-            </Chip>
-            {categories.map(cat => (
-              <Chip
-                key={cat}
-                selected={selectedCategory === cat}
-                onPress={() => setSelectedCategory(cat)}
-                style={styles.categoryChip}
-                selectedColor="white"
-                textStyle={selectedCategory === cat ? styles.selectedChipText : styles.chipText}
-              >
-                {cat}
-              </Chip>
-            ))}
-          </View>
-        </ScrollView>
-
-        <ScrollView
           refreshControl={
-            <RefreshControl 
-              refreshing={loading} 
+            <RefreshControl
+              refreshing={loading}
               onRefresh={loadExpenses}
               tintColor="white"
             />
           }
           showsVerticalScrollIndicator={false}
+          style={styles.expensesScrollView}
         >
-          {filteredExpenses.length === 0 ? (
-            <EmptyState
-              title="No expenses found"
-              message={selectedCategory ? `No expenses in ${selectedCategory} category` : 'Start adding expenses to track your spending'}
-            />
-          ) : (
-            <View style={styles.expensesList}>
-              {filteredExpenses.map(expense => (
-                <ExpenseCard
-                  key={expense._id}
-                  expense={expense}
-                  onEdit={() => navigation.navigate('AddExpense', { expense })}
-                  onDelete={() => handleDelete(expense)}
-                />
-              ))}
+          {Object.keys(groupedExpenses).length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text variant="bodyLarge" style={styles.emptyText}>
+                No expenses yet
+              </Text>
+              <Text variant="bodyMedium" style={styles.emptySubtext}>
+                Tap the + button to add your first expense
+              </Text>
             </View>
+          ) : (
+            Object.keys(groupedExpenses).map((group) => (
+              <View key={group} style={styles.group}>
+                <Text variant="titleMedium" style={styles.groupTitle}>
+                  {group}
+                </Text>
+                {groupedExpenses[group].map((expense) => (
+                  <Card key={expense._id} style={styles.card}>
+                    <Card.Content>
+                      <View style={styles.expenseRow}>
+                        <View style={styles.expenseInfo}>
+                          <Text
+                            variant="titleMedium"
+                            style={styles.expenseAmount}
+                          >
+                            ₹{expense.amount.toFixed(2)}
+                          </Text>
+                          <Text
+                            variant="bodyMedium"
+                            style={styles.expenseCategory}
+                          >
+                            {expense.category} • {expense.paymentMethod}
+                          </Text>
+                          {expense.note && (
+                            <Text
+                              variant="bodySmall"
+                              style={styles.expenseNote}
+                            >
+                              {expense.note}
+                            </Text>
+                          )}
+                          {expense.pendingSync && (
+                            <Text
+                              variant="bodySmall"
+                              style={styles.pendingSync}
+                            >
+                              Pending sync
+                            </Text>
+                          )}
+                        </View>
+                        <View style={styles.actions}>
+                          <IconButton
+                            icon="pencil"
+                            size={20}
+                            iconColor="white"
+                            onPress={() =>
+                              navigation.navigate("AddExpense", { expense })
+                            }
+                          />
+                          <IconButton
+                            icon="delete"
+                            size={20}
+                            iconColor="#ef4444"
+                            onPress={() => handleDelete(expense._id)}
+                          />
+                        </View>
+                      </View>
+                    </Card.Content>
+                  </Card>
+                ))}
+              </View>
+            ))
           )}
         </ScrollView>
       </View>
@@ -180,90 +199,140 @@ export default function ExpensesScreen({ navigation }: any) {
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => navigation.navigate('AddExpense')}
         color="black"
+        onPress={() => navigation.navigate("AddExpense")}
       />
     </View>
   );
 }
 
+function groupExpenses(expenses: Expense[], mode: "daily" | "monthly") {
+  const grouped: { [key: string]: Expense[] } = {};
+
+  expenses.forEach((expense) => {
+    const date = new Date(expense.date);
+    let key = "";
+
+    if (mode === "daily") {
+      key = date.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } else {
+      key = date.toLocaleDateString("en-IN", {
+        month: "long",
+        year: "numeric",
+      });
+    }
+
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+    grouped[key].push(expense);
+  });
+
+  return grouped;
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
   },
   header: {
-    paddingTop: 48,
-    paddingBottom: 24,
-    paddingHorizontal: 16,
+    padding: 20,
+    paddingTop: 60,
+    backgroundColor: "#000000",
   },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  welcomeText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  userName: {
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  logoutButton: {
-    borderRadius: 8,
-  },
-  totalCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  totalLabel: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: 4,
-  },
-  totalAmount: {
-    fontWeight: 'bold',
-    color: 'white',
+  headerTitle: {
+    color: "white",
+    fontWeight: "bold",
   },
   content: {
     flex: 1,
     padding: 16,
-    gap: 16,
   },
   filters: {
-    flexDirection: 'row',
-    gap: 8,
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 16,
   },
   filterButton: {
     flex: 1,
+    borderColor: "white",
   },
-  categoryScroll: {
-    paddingRight: 16,
+  categoryContainer: {
+    marginBottom: 16,
   },
   categories: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
-  categoryChip: {
-    marginRight: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  categoryButton: {
+    minWidth: 80,
+    borderColor: "white",
   },
-  chipText: {
-    color: 'white',
+  expensesScrollView: {
+    flex: 1,
   },
-  selectedChipText: {
-    color: 'black',
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
   },
-  expensesList: {
-    gap: 12,
+  emptyText: {
+    color: "white",
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    color: "rgba(255, 255, 255, 0.6)",
+  },
+  group: {
+    marginBottom: 24,
+  },
+  groupTitle: {
+    color: "white",
+    marginBottom: 12,
+    fontWeight: "600",
+  },
+  card: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginBottom: 12,
+  },
+  expenseRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  expenseInfo: {
+    flex: 1,
+  },
+  expenseAmount: {
+    color: "white",
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  expenseCategory: {
+    color: "rgba(255, 255, 255, 0.8)",
+    marginBottom: 2,
+  },
+  expenseNote: {
+    color: "rgba(255, 255, 255, 0.6)",
+    marginTop: 4,
+  },
+  pendingSync: {
+    color: "#fbbf24",
+    marginTop: 4,
+  },
+  actions: {
+    flexDirection: "row",
   },
   fab: {
-    position: 'absolute',
+    position: "absolute",
     margin: 16,
     right: 0,
     bottom: 0,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
 });

@@ -1,201 +1,265 @@
-import React, { useState, useEffect } from 'react';
-import { ScrollView, RefreshControl, StyleSheet, View } from 'react-native';
-import { Text, Button, ProgressBar } from 'react-native-paper';
-import { useExpenses } from '../context/ExpenseContext';
-import { useAuth } from '../context/AuthContext';
-import EmptyState from '../components/EmptyState';
-import GlassCard from '../components/GlassCard';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  Platform,
+  Modal as RNModal,
+} from "react-native";
+import {
+  Text,
+  Button,
+  Card,
+  IconButton,
+  Portal,
+  Modal,
+} from "react-native-paper";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { analyticsAPI } from "../services/api";
+import { MonthlyStats } from "../types";
 
 export default function InsightsScreen() {
-  const { stats, loading, loadStats } = useExpenses();
-  const { user } = useAuth();
+  const [stats, setStats] = useState<MonthlyStats | null>(null);
+  const [loading, setLoading] = useState(false);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
 
   useEffect(() => {
-    if (user) {
-      loadStats(month, year);
+    loadStats(month, year);
+  }, [month, year]);
+
+  const loadStats = async (m: number, y: number) => {
+    try {
+      setLoading(true);
+      const response = await analyticsAPI.getMonthly(m, y);
+      setStats(response.data);
+    } catch (error) {
+      console.error("Failed to load stats:", error);
+    } finally {
+      setLoading(false);
     }
-  }, [month, year, user]);
+  };
+
+  const navigateMonth = (direction: "prev" | "next") => {
+    let newMonth = month;
+    let newYear = year;
+
+    if (direction === "prev") {
+      newMonth = month === 1 ? 12 : month - 1;
+      newYear = month === 1 ? year - 1 : year;
+    } else {
+      newMonth = month === 12 ? 1 : month + 1;
+      newYear = month === 12 ? year + 1 : year;
+    }
+
+    setMonth(newMonth);
+    setYear(newYear);
+  };
+
+  const handleDateSelect = () => {
+    setMonth(tempDate.getMonth() + 1);
+    setYear(tempDate.getFullYear());
+    setShowDatePicker(false);
+  };
 
   const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      Food: '#10b981',
-      Transport: '#3b82f6',
-      Shopping: '#a855f7',
-      Bills: '#ef4444',
-      Entertainment: '#f59e0b',
-      Other: '#6b7280',
+    const colors: { [key: string]: string } = {
+      Food: "#ef4444",
+      Travel: "#3b82f6",
+      Shopping: "#8b5cf6",
+      Bills: "#f59e0b",
+      Entertainment: "#ec4899",
+      Health: "#10b981",
+      Education: "#06b6d4",
+      Others: "#6b7280",
     };
-    return colors[category] || '#6b7280';
+    return colors[category] || "#6b7280";
   };
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    if (direction === 'prev') {
-      if (month > 1) {
-        setMonth(month - 1);
-      } else {
-        setMonth(12);
-        setYear(year - 1);
-      }
-    } else {
-      if (month < 12) {
-        setMonth(month + 1);
-      } else {
-        setMonth(1);
-        setYear(year + 1);
-      }
-    }
-  };
+  const monthName = new Date(year, month - 1).toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
 
-  if (!stats || !stats.categoryBreakdown || Object.keys(stats.categoryBreakdown).length === 0) {
-    return (
-      <View style={styles.container}>
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text variant="headlineMedium" style={styles.headerTitle}>
+          Insights
+        </Text>
+      </View>
+
+      <View style={styles.content}>
+        <View style={styles.monthNav}>
+          <IconButton
+            icon="chevron-left"
+            size={24}
+            iconColor="white"
+            onPress={() => navigateMonth("prev")}
+          />
+          <Button
+            mode="text"
+            onPress={() => setShowDatePicker(true)}
+            textColor="white"
+          >
+            {monthName}
+          </Button>
+          <IconButton
+            icon="chevron-right"
+            size={24}
+            iconColor="white"
+            onPress={() => navigateMonth("next")}
+          />
+        </View>
+
         <ScrollView
           refreshControl={
-            <RefreshControl 
-              refreshing={loading} 
+            <RefreshControl
+              refreshing={loading}
               onRefresh={() => loadStats(month, year)}
               tintColor="white"
             />
           }
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.content}>
-            <View style={styles.monthNav}>
-              <Button
-                icon="chevron-left"
-                onPress={() => navigateMonth('prev')}
-                mode="outlined"
-                textColor="white"
-              />
-              <Text variant="headlineMedium" style={styles.monthText}>
-                {new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
-              </Text>
-              <Button
-                icon="chevron-right"
-                onPress={() => navigateMonth('next')}
-                mode="outlined"
-                textColor="white"
-              />
-            </View>
-            <EmptyState
-              title="No data available"
-              message="Add some expenses to see insights and spending patterns"
-            />
-          </View>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <ScrollView
-        refreshControl={
-          <RefreshControl 
-            refreshing={loading} 
-            onRefresh={() => loadStats(month, year)}
-            tintColor="white"
-          />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-          <View style={styles.monthNav}>
-            <Button
-              icon="chevron-left"
-              onPress={() => navigateMonth('prev')}
-              mode="outlined"
-              textColor="white"
-            />
-            <Text variant="headlineMedium" style={styles.monthText}>
-              {new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
-            </Text>
-            <Button
-              icon="chevron-right"
-              onPress={() => navigateMonth('next')}
-              mode="outlined"
-              textColor="white"
-            />
-          </View>
-
-          <GlassCard>
-            <Text variant="bodySmall" style={styles.label}>
-              Total Spending
-            </Text>
-            <Text variant="displaySmall" style={styles.total}>
-              ₹{stats.total.toFixed(2)}
-            </Text>
-          </GlassCard>
-
-          <Text variant="titleLarge" style={styles.sectionTitle}>
-            Category Breakdown
-          </Text>
-          {Object.entries(stats.categoryBreakdown).map(([cat, amount]) => {
-            const percentage = stats.total > 0 ? (amount / stats.total) * 100 : 0;
-            return (
-              <GlassCard key={cat} style={{ marginBottom: 12 }}>
-                <View style={styles.categoryHeader}>
-                  <Text variant="titleMedium" style={[styles.categoryName, { color: getCategoryColor(cat) }]}>
-                    {cat}
-                  </Text>
-                  <Text variant="headlineSmall" style={styles.categoryAmount}>
-                    ₹{amount.toFixed(2)}
-                  </Text>
-                </View>
-                <ProgressBar
-                  progress={percentage / 100}
-                  color={getCategoryColor(cat)}
-                  style={styles.progress}
-                />
-                <Text variant="bodySmall" style={styles.percentage}>
-                  {percentage.toFixed(1)}% of total
-                </Text>
-              </GlassCard>
-            );
-          })}
-
-          {stats.insights && stats.insights.length > 0 && (
+          {stats && (
             <>
-              <Text variant="titleLarge" style={styles.sectionTitle}>
-                Insights
-              </Text>
-              {stats.insights.map(insight => (
-                <GlassCard key={insight.category} style={{ marginBottom: 12 }}>
-                  <View style={styles.insightHeader}>
-                    {insight.change > 0 ? (
-                      <Text style={styles.insightIcon}>↑</Text>
-                    ) : insight.change < 0 ? (
-                      <Text style={styles.insightIcon}>↓</Text>
-                    ) : (
-                      <Text style={styles.insightIcon}>→</Text>
-                    )}
-                    <Text variant="titleMedium" style={styles.insightCategory}>
-                      {insight.category}
-                    </Text>
-                  </View>
-                  <Text variant="bodyMedium" style={styles.insightText}>
-                    You spent ₹{insight.current.toFixed(2)} this month
+              <Card style={styles.totalCard}>
+                <Card.Content>
+                  <Text variant="titleMedium" style={styles.totalLabel}>
+                    Total Spent
                   </Text>
-                  {insight.change > 0 ? (
-                    <Text variant="bodyMedium" style={[styles.insightChange, { color: '#ef4444' }]}>
-                      ↑ +{insight.change}% more than last month
-                    </Text>
-                  ) : insight.change < 0 ? (
-                    <Text variant="bodyMedium" style={[styles.insightChange, { color: '#10b981' }]}>
-                      ↓ {Math.abs(insight.change)}% less than last month
-                    </Text>
-                  ) : (
-                    <Text variant="bodyMedium" style={[styles.insightChange, { color: 'rgba(255, 255, 255, 0.7)' }]}>
-                      → Same as last month
-                    </Text>
-                  )}
-                </GlassCard>
-              ))}
+                  <Text variant="displaySmall" style={styles.totalAmount}>
+                    ₹{stats.totalSpent.toFixed(2)}
+                  </Text>
+                </Card.Content>
+              </Card>
+
+              {stats.insights && stats.insights.length > 0 && (
+                <View style={styles.section}>
+                  <Text variant="titleLarge" style={styles.sectionTitle}>
+                    Key Insights
+                  </Text>
+                  {stats.insights.map((insight, index) => (
+                    <Card key={index} style={styles.insightCard}>
+                      <Card.Content>
+                        <Text variant="bodyLarge" style={styles.insightText}>
+                          {insight}
+                        </Text>
+                      </Card.Content>
+                    </Card>
+                  ))}
+                </View>
+              )}
+
+              {stats.categoryTotals && stats.categoryTotals.length > 0 && (
+                <View style={styles.section}>
+                  <Text variant="titleLarge" style={styles.sectionTitle}>
+                    Category Breakdown
+                  </Text>
+                  {stats.categoryTotals.map((cat) => (
+                    <Card key={cat.category} style={styles.categoryCard}>
+                      <Card.Content>
+                        <View style={styles.categoryHeader}>
+                          <View style={styles.categoryInfo}>
+                            <Text
+                              variant="titleMedium"
+                              style={[
+                                styles.categoryName,
+                                { color: getCategoryColor(cat.category) },
+                              ]}
+                            >
+                              {cat.category}
+                            </Text>
+                            <Text variant="bodySmall" style={styles.percentage}>
+                              {cat.percentage.toFixed(1)}% of total
+                            </Text>
+                          </View>
+                          <Text
+                            variant="headlineSmall"
+                            style={styles.categoryAmount}
+                          >
+                            ₹{cat.total.toFixed(2)}
+                          </Text>
+                        </View>
+                        <View style={styles.progressBar}>
+                          <View
+                            style={[
+                              styles.progressFill,
+                              {
+                                width: `${cat.percentage}%`,
+                                backgroundColor: getCategoryColor(cat.category),
+                              },
+                            ]}
+                          />
+                        </View>
+                      </Card.Content>
+                    </Card>
+                  ))}
+                </View>
+              )}
             </>
           )}
-        </View>
-      </ScrollView>
+
+          {!loading && (!stats || stats.totalSpent === 0) && (
+            <View style={styles.emptyState}>
+              <Text variant="bodyLarge" style={styles.emptyText}>
+                No expenses for this month
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </View>
+
+      {Platform.OS === "ios" ? (
+        <Portal>
+          <Modal
+            visible={showDatePicker}
+            onDismiss={() => setShowDatePicker(false)}
+            contentContainerStyle={styles.datePickerModal}
+          >
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+              display="spinner"
+              onChange={(event, selectedDate) => {
+                if (selectedDate) {
+                  setTempDate(selectedDate);
+                }
+              }}
+            />
+            <View style={styles.modalButtons}>
+              <Button
+                onPress={() => setShowDatePicker(false)}
+                textColor="white"
+              >
+                Cancel
+              </Button>
+              <Button onPress={handleDateSelect} textColor="white">
+                Done
+              </Button>
+            </View>
+          </Modal>
+        </Portal>
+      ) : (
+        showDatePicker && (
+          <DateTimePicker
+            value={tempDate}
+            mode="date"
+            display="default"
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) {
+                setMonth(selectedDate.getMonth() + 1);
+                setYear(selectedDate.getFullYear());
+              }
+            }}
+          />
+        )
+      )}
     </View>
   );
 }
@@ -203,79 +267,105 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
+  },
+  header: {
+    padding: 20,
+    paddingTop: 60,
+    backgroundColor: "#000000",
+  },
+  headerTitle: {
+    color: "white",
+    fontWeight: "bold",
   },
   content: {
+    flex: 1,
     padding: 16,
-    gap: 16,
   },
   monthNav: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 16,
-    gap: 16,
   },
-  monthText: {
-    flex: 1,
-    textAlign: 'center',
-    fontWeight: 'bold',
-    color: 'white',
+  totalCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginBottom: 24,
   },
-  label: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: 4,
+  totalLabel: {
+    color: "rgba(255, 255, 255, 0.7)",
+    marginBottom: 8,
   },
-  total: {
-    fontWeight: 'bold',
-    color: 'white',
+  totalAmount: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  section: {
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontWeight: 'bold',
-    marginTop: 8,
-    marginBottom: 8,
-    color: 'white',
+    color: "white",
+    marginBottom: 12,
+    fontWeight: "600",
   },
-  categoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  insightCard: {
+    backgroundColor: "rgba(59, 130, 246, 0.2)",
     marginBottom: 12,
   },
-  categoryName: {
-    fontWeight: 'bold',
-  },
-  categoryAmount: {
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  progress: {
-    height: 8,
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  percentage: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  insightIcon: {
-    fontSize: 24,
-    color: 'white',
-  },
-  insightCategory: {
-    fontWeight: 'bold',
-    color: 'white',
-  },
   insightText: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: "white",
+  },
+  categoryCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginBottom: 12,
+  },
+  categoryHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  categoryInfo: {
+    flex: 1,
+  },
+  categoryName: {
+    fontWeight: "600",
     marginBottom: 4,
   },
-  insightChange: {
-    fontWeight: 'bold',
+  percentage: {
+    color: "rgba(255, 255, 255, 0.6)",
+  },
+  categoryAmount: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  emptyText: {
+    color: "rgba(255, 255, 255, 0.6)",
+  },
+  datePickerModal: {
+    backgroundColor: "#1a1a1a",
+    padding: 20,
+    margin: 20,
+    borderRadius: 8,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 16,
   },
 });

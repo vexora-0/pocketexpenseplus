@@ -1,114 +1,82 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '../types';
-import { authService } from '../services/authService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  ReactNode,
+} from "react";
+import { storage } from "../utils/storage";
+import { authAPI } from "../services/api";
+import { User } from "../types";
 
-interface AuthContextType {
+interface AuthContextData {
   user: User | null;
-  loading: boolean;
-  error: string | null;
   isAuthenticated: boolean;
+  loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  clearError: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadUser();
+    loadStoredUser();
   }, []);
 
-  const loadUser = async () => {
+  const loadStoredUser = async () => {
     try {
-      const token = await authService.getStoredToken();
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const storedUser = await authService.getStoredUser();
-      if (storedUser) {
+      const token = await storage.getToken();
+      const storedUser = await storage.getUser();
+      if (token && storedUser) {
         setUser(storedUser);
       }
-    } catch (err) {
-      console.error('Error loading user:', err);
-      await authService.logout();
+    } catch (error) {
+      console.error("Failed to load user:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const login = async (email: string, password: string) => {
-    try {
-      setError(null);
-      setLoading(true);
-      const data = await authService.login(email, password);
-      setUser(data.user);
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Login failed');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+    const response = await authAPI.login({ email, password });
+    const { token, user: userData } = response.data;
+    await storage.saveToken(token);
+    await storage.saveUser(userData);
+    setUser(userData);
   };
 
-  const register = async (email: string, password: string, name: string) => {
-    try {
-      setError(null);
-      setLoading(true);
-      const data = await authService.register(email, password, name);
-      setUser(data.user);
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Registration failed');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+  const register = async (name: string, email: string, password: string) => {
+    const response = await authAPI.register({ name, email, password });
+    const { token, user: userData } = response.data;
+    await storage.saveToken(token);
+    await storage.saveUser(userData);
+    setUser(userData);
   };
 
   const logout = async () => {
-    try {
-      await authService.logout();
-      await AsyncStorage.multiRemove(['token', 'user', 'pending_expenses']);
-      setUser(null);
-      setError(null);
-    } catch (err) {
-      console.error('Logout error:', err);
-      setUser(null);
-      setError(null);
-    }
-  };
-
-  const clearError = () => {
-    setError(null);
+    await storage.clear();
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      loading,
-      error,
-      isAuthenticated: !!user,
-      login,
-      register,
-      logout,
-      clearError
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        loading,
+        login,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
-};
-
+export const useAuth = () => useContext(AuthContext);

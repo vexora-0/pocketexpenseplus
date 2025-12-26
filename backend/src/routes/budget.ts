@@ -24,17 +24,22 @@ router.post('/', async (req: AuthRequest, res) => {
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const { month, year } = req.query;
+    
+    // Default to current month/year if not provided
+    const queryMonth = month ? Number(month) : new Date().getMonth() + 1;
+    const queryYear = year ? Number(year) : new Date().getFullYear();
+    
     const budgets = await Budget.find({
       userId: req.userId,
-      month: Number(month),
-      year: Number(year)
+      month: queryMonth,
+      year: queryYear
     });
 
     const expenses = await Expense.find({
       userId: req.userId,
       date: {
-        $gte: new Date(Number(year), Number(month) - 1, 1),
-        $lte: new Date(Number(year), Number(month), 0, 23, 59, 59)
+        $gte: new Date(queryYear, queryMonth - 1, 1),
+        $lte: new Date(queryYear, queryMonth, 0, 23, 59, 59)
       }
     });
 

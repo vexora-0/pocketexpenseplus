@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import expenseRoutes from './routes/expenses';
 import budgetRoutes from './routes/budget';
+import analyticsRoutes from './routes/analytics';
 
 dotenv.config();
 
@@ -20,7 +21,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pocketexp
 
 app.use('/api/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
-app.use('/api/budget', budgetRoutes);
+app.use('/api/budgets', budgetRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

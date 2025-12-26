@@ -1,49 +1,71 @@
-import axios, { AxiosError, CancelTokenSource } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { storage } from '../utils/storage';
 
-// For Android emulator use: http://10.0.2.2:5000/api
-// For iOS simulator use: http://localhost:5000/api
-// For physical device use your computer's IP: http://YOUR_IP:5000/api
-const API_URL = __DEV__ ? 'http://localhost:5000/api' : 'http://localhost:5000/api';
+const API_URL = 'http://192.168.0.232:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
   timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
-
-let cancelTokenSource: CancelTokenSource | null = null;
 
 api.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem('token');
+    const token = await storage.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 api.interceptors.response.use(
   (response) => response,
-  async (error: AxiosError) => {
+  async (error) => {
     if (error.response?.status === 401) {
-      await AsyncStorage.multiRemove(['token', 'user']);
-      if (error.config && !error.config.url?.includes('/auth/')) {
-        console.log('Unauthorized - clearing session');
-      }
+      await storage.clear();
     }
     return Promise.reject(error);
   }
 );
 
-export const cancelPendingRequests = () => {
-  if (cancelTokenSource) {
-    cancelTokenSource.cancel('Request cancelled due to logout');
-    cancelTokenSource = null;
-  }
+export const authAPI = {
+  register: (data: { name: string; email: string; password: string }) =>
+    api.post('/auth/register', data),
+  login: (data: { email: string; password: string }) =>
+    api.post('/auth/login', data),
+};
+
+export const expenseAPI = {
+  getAll: () => api.get('/expenses'),
+  getById: (id: string) => api.get(`/expenses/${id}`),
+  create: (data: any) => api.post('/expenses', data),
+  update: (id: string, data: any) => api.put(`/expenses/${id}`, data),
+  delete: (id: string) => api.delete(`/expenses/${id}`),
+};
+
+export const analyticsAPI = {
+  getMonthly: (month: number, year: number) =>
+    api.get(`/analytics/monthly?month=${month}&year=${year}`),
+  getInsights: () => api.get('/analytics/insights'),
+};
+
+export const budgetAPI = {
+  getAll: (month?: number, year?: number) => {
+    const params = new URLSearchParams();
+    if (month) params.append('month', month.toString());
+    if (year) params.append('year', year.toString());
+    const query = params.toString();
+    return api.get(`/budgets${query ? `?${query}` : ''}`);
+  },
+  create: (data: { category: string; limit: number; month: number; year: number }) =>
+    api.post('/budgets', data),
+  update: (id: string, data: { limit: number }) =>
+    api.put(`/budgets/${id}`, data),
+  delete: (id: string) => api.delete(`/budgets/${id}`),
 };
 
 export default api;

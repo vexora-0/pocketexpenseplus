@@ -18,7 +18,7 @@ Full-stack expense tracking app with offline support, insights, and budget manag
 **Frontend:**
 - React Native (Expo)
 - TypeScript
-- Tamagui UI
+- React Native Paper
 - React Navigation
 - Context API
 - AsyncStorage

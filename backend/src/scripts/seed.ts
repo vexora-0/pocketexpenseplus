@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import User from '../models/User';
 import Expense from '../models/Expense';
 import Budget from '../models/Budget';
-import bcrypt from 'bcryptjs';
 
 dotenv.config();
 

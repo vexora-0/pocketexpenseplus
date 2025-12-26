@@ -1,235 +1,277 @@
-import React, { useState, useEffect } from 'react';
-import { ScrollView, KeyboardAvoidingView, Platform, Alert, StyleSheet, View } from 'react-native';
-import { TextInput, Button, Text, Chip } from 'react-native-paper';
-import { useExpenses } from '../context/ExpenseContext';
-import { Expense } from '../types';
-import GlassCard from '../components/GlassCard';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from "react-native";
+import { Text, TextInput, Button, Chip, IconButton } from "react-native-paper";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useExpenses } from "../context/ExpenseContext";
+import { CATEGORIES, PAYMENT_METHODS } from "../types";
 
-const categories = ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Other'];
-const paymentMethods = ['Cash', 'Card', 'UPI', 'Online'];
+type Props = {
+  navigation: any;
+  route: any;
+};
 
-export default function AddExpenseScreen({ navigation, route }: any) {
+export default function AddExpenseScreen({ navigation, route }: Props) {
   const { addExpense, updateExpense } = useExpenses();
-  const expense = route.params?.expense as Expense | undefined;
+  const expense = route.params?.expense;
 
-  const [amount, setAmount] = useState(expense?.amount.toString() || '');
-  const [category, setCategory] = useState(expense?.category || '');
-  const [paymentMethod, setPaymentMethod] = useState(expense?.paymentMethod || '');
-  const [date, setDate] = useState(
-    expense?.date
-      ? new Date(expense.date).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0]
+  const [amount, setAmount] = useState(expense?.amount.toString() || "");
+  const [category, setCategory] = useState(expense?.category || "");
+  const [paymentMethod, setPaymentMethod] = useState(
+    expense?.paymentMethod || ""
   );
-  const [description, setDescription] = useState(expense?.description || '');
+  const [date, setDate] = useState(
+    expense ? new Date(expense.date) : new Date()
+  );
+  const [note, setNote] = useState(expense?.note || "");
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
     if (!amount || !category || !paymentMethod) {
-      Alert.alert('Validation Error', 'Please fill all required fields');
+      Alert.alert("Error", "Please fill in all required fields");
       return;
     }
 
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid amount');
+    if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      Alert.alert("Error", "Please enter a valid amount");
       return;
     }
-
-    setLoading(true);
-    const expenseData: Omit<Expense, '_id'> = {
-      amount: amountNum,
-      category,
-      paymentMethod,
-      date,
-      description: description || undefined,
-    };
 
     try {
-      if (expense?._id) {
+      setLoading(true);
+      const expenseData = {
+        amount: parseFloat(amount),
+        category,
+        paymentMethod,
+        date: date.toISOString(),
+        note,
+      };
+
+      if (expense) {
         await updateExpense(expense._id, expenseData);
       } else {
         await addExpense(expenseData);
       }
+
       navigation.goBack();
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to save expense');
+    } catch (error) {
+      Alert.alert("Error", "Failed to save expense");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <View style={styles.header}>
+        <IconButton
+          icon="close"
+          size={24}
+          iconColor="white"
+          onPress={() => navigation.goBack()}
+        />
+        <Text variant="titleLarge" style={styles.headerTitle}>
+          {expense ? "Edit Expense" : "Add Expense"}
+        </Text>
+        <View style={{ width: 48 }} />
+      </View>
+
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text variant="headlineMedium" style={styles.title}>
-            {expense ? 'Edit Expense' : 'Add Expense'}
-          </Text>
-          <Button
-            icon="close"
-            mode="text"
-            onPress={() => navigation.goBack()}
-            compact
-            textColor="white"
-          />
+        <TextInput
+          label="Amount *"
+          value={amount}
+          onChangeText={setAmount}
+          mode="outlined"
+          keyboardType="numeric"
+          style={styles.input}
+          textColor="white"
+          outlineColor="rgba(255, 255, 255, 0.3)"
+          activeOutlineColor="white"
+          theme={{ colors: { onSurfaceVariant: "rgba(255, 255, 255, 0.6)" } }}
+          left={<TextInput.Affix text="₹" textStyle={{ color: "white" }} />}
+        />
+
+        <Text variant="titleSmall" style={styles.label}>
+          Category *
+        </Text>
+        <View style={styles.chips}>
+          {CATEGORIES.map((cat) => (
+            <Chip
+              key={cat}
+              selected={category === cat}
+              onPress={() => setCategory(cat)}
+              style={[styles.chip, category === cat && styles.selectedChip]}
+              textStyle={
+                category === cat ? styles.selectedChipText : styles.chipText
+              }
+              selectedColor="black"
+            >
+              {cat}
+            </Chip>
+          ))}
         </View>
 
-        <ScrollView style={{ flex: 1 }}>
-          <View style={styles.content}>
-            <GlassCard>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                Amount *
-              </Text>
-              <TextInput
-                label="Amount"
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-                mode="outlined"
-                style={styles.input}
-                textColor="white"
-                theme={{ colors: { text: 'white', placeholder: 'rgba(255,255,255,0.6)', primary: 'white' } }}
-              />
-            </GlassCard>
-
-            <GlassCard>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                Category *
-              </Text>
-              <View style={styles.chips}>
-                {categories.map(cat => (
-                  <Chip
-                    key={cat}
-                    selected={category === cat}
-                    onPress={() => setCategory(cat)}
-                    style={styles.chip}
-                    selectedColor="white"
-                    textStyle={category === cat ? styles.selectedChipText : styles.chipText}
-                  >
-                    {cat}
-                  </Chip>
-                ))}
-              </View>
-            </GlassCard>
-
-            <GlassCard>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                Payment Method *
-              </Text>
-              <View style={styles.chips}>
-                {paymentMethods.map(method => (
-                  <Chip
-                    key={method}
-                    selected={paymentMethod === method}
-                    onPress={() => setPaymentMethod(method)}
-                    style={styles.chip}
-                    selectedColor="white"
-                    textStyle={paymentMethod === method ? styles.selectedChipText : styles.chipText}
-                  >
-                    {method}
-                  </Chip>
-                ))}
-              </View>
-            </GlassCard>
-
-            <GlassCard>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                Date *
-              </Text>
-              <TextInput
-                label="Date (YYYY-MM-DD)"
-                value={date}
-                onChangeText={setDate}
-                mode="outlined"
-                style={styles.input}
-                textColor="white"
-                theme={{ colors: { text: 'white', placeholder: 'rgba(255,255,255,0.6)', primary: 'white' } }}
-              />
-            </GlassCard>
-
-            <GlassCard>
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                Description (Optional)
-              </Text>
-              <TextInput
-                label="Description"
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                numberOfLines={3}
-                mode="outlined"
-                style={styles.input}
-                textColor="white"
-                theme={{ colors: { text: 'white', placeholder: 'rgba(255,255,255,0.6)', primary: 'white' } }}
-              />
-            </GlassCard>
-
-            <Button
-              mode="contained"
-              onPress={handleSave}
-              disabled={loading || !amount || !category || !paymentMethod}
-              loading={loading}
-              style={styles.saveButton}
-              buttonColor="white"
-              textColor="black"
+        <Text variant="titleSmall" style={styles.label}>
+          Payment Method *
+        </Text>
+        <View style={styles.chips}>
+          {PAYMENT_METHODS.map((method) => (
+            <Chip
+              key={method}
+              selected={paymentMethod === method}
+              onPress={() => setPaymentMethod(method)}
+              style={[
+                styles.chip,
+                paymentMethod === method && styles.selectedChip,
+              ]}
+              textStyle={
+                paymentMethod === method
+                  ? styles.selectedChipText
+                  : styles.chipText
+              }
+              selectedColor="black"
             >
-              {expense ? 'Update' : 'Save'} Expense
-            </Button>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+              {method}
+            </Chip>
+          ))}
+        </View>
+
+        <Text variant="titleSmall" style={styles.label}>
+          Date
+        </Text>
+        <Button
+          mode="outlined"
+          onPress={() => setShowDatePicker(true)}
+          textColor="white"
+          style={styles.dateButton}
+        >
+          {date.toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}
+        </Button>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="default"
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) {
+                setDate(selectedDate);
+              }
+            }}
+            maximumDate={new Date()}
+          />
+        )}
+
+        <TextInput
+          label="Note (optional)"
+          value={note}
+          onChangeText={setNote}
+          mode="outlined"
+          multiline
+          numberOfLines={3}
+          style={[styles.input, styles.noteInput]}
+          textColor="white"
+          outlineColor="rgba(255, 255, 255, 0.3)"
+          activeOutlineColor="white"
+          theme={{ colors: { onSurfaceVariant: "rgba(255, 255, 255, 0.6)" } }}
+        />
+
+        <Button
+          mode="contained"
+          onPress={handleSave}
+          loading={loading}
+          disabled={loading}
+          style={styles.saveButton}
+          buttonColor="white"
+          textColor="black"
+        >
+          {expense ? "Save Changes" : "Add Expense"}
+        </Button>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    paddingTop: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 50,
+    paddingHorizontal: 8,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
-  title: {
-    fontWeight: 'bold',
-    color: 'white',
+  headerTitle: {
+    color: "white",
+    fontWeight: "bold",
   },
   content: {
-    padding: 16,
-    gap: 16,
+    flex: 1,
   },
-  sectionTitle: {
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: 'white',
+  scrollContent: {
+    padding: 20,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 20,
+    backgroundColor: "transparent",
+  },
+  noteInput: {
+    marginTop: 8,
+  },
+  label: {
+    color: "white",
+    marginBottom: 12,
+    marginTop: 8,
   },
   chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
+    marginBottom: 20,
   },
   chip: {
-    marginRight: 8,
-    marginBottom: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  selectedChip: {
+    backgroundColor: "white",
   },
   chipText: {
-    color: 'white',
+    color: "white",
   },
   selectedChipText: {
-    color: 'black',
+    color: "black",
+  },
+  dateButton: {
+    borderColor: "white",
+    marginBottom: 20,
   },
   saveButton: {
-    marginTop: 8,
+    marginTop: 20,
+    paddingVertical: 6,
   },
 });
