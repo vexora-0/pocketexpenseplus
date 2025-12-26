@@ -95,15 +95,20 @@ npm install
    - For iOS simulator: `http://localhost:5000/api`
    - For physical device: `http://YOUR_COMPUTER_IP:5000/api`
 
-4. Run app:
+4. Install Expo Go app on your phone:
+   - Android: [Google Play Store](https://play.google.com/store/apps/details?id=host.exp.exponent)
+   - iOS: [App Store](https://apps.apple.com/app/expo-go/id982107779)
+
+5. Run app:
 ```bash
 npm start
 ```
 
-Then press:
-- `a` for Android
-- `i` for iOS
-- `w` for web
+6. Scan the QR code:
+   - Open Expo Go app on your phone
+   - Tap "Scan QR code"
+   - Point your camera at the QR code shown in the terminal
+   - Make sure your phone and computer are on the same Wi-Fi network
 
 ## API Endpoints
 
@@ -120,9 +125,28 @@ Then press:
 - `GET /api/expenses/stats` - Get stats (query: month, year)
 
 ### Budget
-- `GET /api/budget` - Get budgets (query: month, year)
-- `POST /api/budget` - Create/update budget
-- `DELETE /api/budget/:id` - Delete budget
+- `GET /api/budgets` - Get budgets (query: month, year)
+- `POST /api/budgets` - Create/update budget
+- `DELETE /api/budgets/:id` - Delete budget
+
+### Analytics
+- `GET /api/analytics/monthly` - Get monthly stats (query: month, year)
+- `GET /api/analytics/insights` - Get spending insights
+
+### Screenshots
+
+<div align="center">
+  <img src="./screenshots/1.jpeg" alt="" width="200"/>
+  <img src="./screenshots/2.jpeg" alt="" width="200"/>
+  <img src="./screenshots/3.jpeg" alt="" width="200"/>
+  <br/>
+  <img src="./screenshots/4.jpeg" alt="" width="200"/>
+  <img src="./screenshots/5.jpeg" alt="" width="200"/>
+  <img src="./screenshots/6.jpeg" alt="" width="200"/>
+  <br/>
+  <img src="./screenshots/7.jpeg" alt="" width="200"/>
+</div>
+
 
 ## Project Structure
 
@@ -130,8 +154,9 @@ Then press:
 ├── backend/
 │   ├── src/
 │   │   ├── models/       # MongoDB models
-│   │   ├── routes/       # API routes
+│   │   ├── routes/       # API routes (auth, expenses, budgets, analytics)
 │   │   ├── middleware/   # Auth middleware
+│   │   ├── scripts/      # Database seeding scripts
 │   │   └── index.ts      # Server entry
 │   └── package.json
 ├── frontend/

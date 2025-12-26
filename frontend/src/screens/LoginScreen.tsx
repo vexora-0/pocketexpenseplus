@@ -51,7 +51,7 @@ export default function LoginScreen({ navigation }: Props) {
       >
         <View style={styles.content}>
           <Text variant="displayMedium" style={styles.title}>
-            PocketExpense{"\n"}+
+            Pocket{"\n"}Expense{"\n"}+
           </Text>
           <Text variant="bodyLarge" style={styles.subtitle}>
             Track your expenses, gain insights
